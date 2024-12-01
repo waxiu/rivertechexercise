@@ -8,10 +8,10 @@ import org.springframework.data.redis.serializer.GenericToStringSerializer
 import org.springframework.data.redis.serializer.StringRedisSerializer
 
 @Configuration
-open class RedisConfig {
+ class RedisConfig {
 
     @Bean
-    open fun redisTemplate(redisConnectionFactory: RedisConnectionFactory): RedisTemplate<String, Long> {
+     fun redisTemplate(redisConnectionFactory: RedisConnectionFactory): RedisTemplate<String, Long> {
         return RedisTemplate<String, Long>().apply {
             setConnectionFactory(redisConnectionFactory)
             keySerializer = StringRedisSerializer()

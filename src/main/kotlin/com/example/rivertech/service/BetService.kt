@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.math.BigDecimal
 
 @Service
-open class BetService(
+ class BetService(
     private val betRepository: BetRepository
 ) {
 
@@ -26,7 +26,7 @@ open class BetService(
     }
 
     @Transactional
-    open fun createPendingBet(player: Player, betAmount: BigDecimal, chosenNumber: Int, transaction: Transaction): Bet {
+     fun createPendingBet(player: Player, betAmount: BigDecimal, chosenNumber: Int, transaction: Transaction): Bet {
         require(betAmount > BigDecimal.ZERO) {
             "Bet amount must be greater than zero."
         }
@@ -48,7 +48,7 @@ open class BetService(
     }
 
     @Transactional
-    open fun finalizeBet(bet: Bet, gameResultDto: GameResultDto) {
+     fun finalizeBet(bet: Bet, gameResultDto: GameResultDto) {
         logger.info("Finalizing bet with betId: {}, for playerId: {}", bet.id, bet.player?.id)
 
         check(bet.status == BetStatus.PENDING) {

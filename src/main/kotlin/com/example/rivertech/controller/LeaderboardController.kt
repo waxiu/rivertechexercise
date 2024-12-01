@@ -1,5 +1,6 @@
 package com.example.rivertech.controller
 
+import com.example.rivertech.dto.ApiResponse
 import com.example.rivertech.dto.PlayerRankingDto
 import com.example.rivertech.service.LeaderboardService
 import org.slf4j.Logger
@@ -21,19 +22,19 @@ class LeaderboardController(
     }
 
     @GetMapping("/winners")
-    fun getLeaderboard(@RequestParam(defaultValue = "10") top: Int): List<PlayerRankingDto> {
+    fun getLeaderboard(@RequestParam(defaultValue = "10") top: Int): ApiResponse<List<PlayerRankingDto>> {
         logger.info("Fetching top {} players from the leaderboard", top)
 
         val leaderboard: Set<ZSetOperations.TypedTuple<Long>>? = leaderboardService.getTopPlayers(top)
 
         val rankings = leaderboard?.map { entry ->
             PlayerRankingDto(
-                playerId = entry.value ?: 0L, // playerId
-                score = entry.score ?: 0.0   // score
+                playerId = entry.value ?: 0L,
+                score = entry.score ?: 0.0
             )
         } ?: emptyList()
 
         logger.info("Leaderboard fetched successfully, returning {} entries", rankings.size)
-        return rankings
+        return ApiResponse(success = true, message = "Leaderboard fetched successfully", data = rankings)
     }
 }

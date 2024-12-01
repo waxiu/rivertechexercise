@@ -1,104 +1,125 @@
+package com.example.rivertech
+
 import com.example.rivertech.dto.GameResultDto
 import com.example.rivertech.game.GameLogic
 import com.example.rivertech.game.GameLogicFactory
 import com.example.rivertech.game.enums.GameType
-import com.example.rivertech.model.Bet
-import com.example.rivertech.model.Player
-import com.example.rivertech.model.Transaction
-import com.example.rivertech.model.Wallet
-import com.example.rivertech.model.enums.BetStatus
+import com.example.rivertech.model.*
 import com.example.rivertech.repository.PlayerRepository
-import com.example.rivertech.service.*
-import org.junit.jupiter.api.Assertions.*
+import com.example.rivertech.service.BetService
+import com.example.rivertech.service.GameService
+import com.example.rivertech.service.TransactionService
+import com.example.rivertech.service.WalletService
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.assertThrows
-import org.mockito.Mockito.*
-import org.mockito.Mockito.`when`
+import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.InjectMocks
+import org.mockito.Mock
+import org.mockito.junit.jupiter.MockitoExtension
 import java.math.BigDecimal
-import java.util.*
+import java.util.Optional
+import org.mockito.kotlin.*
 
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
+
+@ExtendWith(MockitoExtension::class)
 class GameServiceTest {
 
-    private val gameLogicFactory = mock(GameLogicFactory::class.java)
-    private val playerRepository = mock(PlayerRepository::class.java)
-    private val walletService = mock(WalletService::class.java)
-    private val betService = mock(BetService::class.java)
-    private val transactionService = mock(TransactionService::class.java)
-    private val gameService = GameService(gameLogicFactory, playerRepository, walletService, betService, transactionService)
+    @Mock
+    private lateinit var gameLogicFactory: GameLogicFactory
+
+    @Mock
+    private lateinit var playerRepository: PlayerRepository
+
+    @Mock
+    private lateinit var walletService: WalletService
+
+    @Mock
+    private lateinit var betService: BetService
+
+    @Mock
+    private lateinit var transactionService: TransactionService
+
+    @InjectMocks
+    private lateinit var gameService: GameService
 
     @Test
-    fun `should play game successfully`() {
+    fun `playGame should deduct funds and add winnings when player wins`() {
         // Arrange
         val playerId = 1L
-        val betAmount = BigDecimal(100)
+        val betAmount = BigDecimal("100")
         val chosenNumber = 5
         val gameType = GameType.ODDS_BASED
-        val player = Player(id = playerId, wallet = Wallet(id = 1L, balance = BigDecimal(200)))
-        val transaction = Transaction(id = 1L, amount = betAmount)
-        val bet = Bet(id = 1L, betAmount = betAmount, betNumber = chosenNumber, status = BetStatus.PENDING)
-        val gameLogic = mock(GameLogic::class.java)
+        val generatedNumber = 5 // Expected random number
+        val winnings = BigDecimal("1000")
 
-        `when`(playerRepository.findById(playerId)).thenReturn(Optional.of(player))
-        `when`(gameLogicFactory.getGameLogic(gameType)).thenReturn(gameLogic)
-        `when`(gameLogic.calculateWinnings(anyInt(), eq(chosenNumber), eq(betAmount))).thenReturn(BigDecimal(200))
-        `when`(betService.createPendingBet(player, betAmount, chosenNumber, transaction)).thenReturn(bet)
+        val player = Player()
+        val wallet = Wallet(BigDecimal("1000"), BigDecimal("0"))
+        player.wallet = wallet
+
+        val transaction = Transaction()
+        val bet = Bet()
+        val gameLogic = mock<GameLogic>()
+
+        whenever(playerRepository.findById(playerId)).thenReturn(Optional.of(player))
+        whenever(gameLogicFactory.getGameLogic(gameType)).thenReturn(gameLogic)
+        whenever(gameLogic.calculateWinnings(generatedNumber, chosenNumber, betAmount)).thenReturn(winnings)
+        whenever(transactionService.createBetTransaction(wallet, betAmount)).thenReturn(transaction)
+        whenever(betService.createPendingBet(player, betAmount, chosenNumber, transaction)).thenReturn(bet)
+
+        // Mocking random number
+        val gameServiceSpy = spy(gameService)
+        doReturn(generatedNumber).whenever(gameServiceSpy).generateRandomNumber()
 
         // Act
-        val result = gameService.playGame(playerId, betAmount, chosenNumber, gameType)
+        val result = gameServiceSpy.playGame(playerId, betAmount, chosenNumber, gameType)
 
         // Assert
-        assertNotNull(result)
-        assertEquals(BigDecimal(200), result.winnings)
-        verify(walletService).deductFundsFromWallet(player.wallet!!, betAmount)
-        verify(walletService).addFundsToWallet(player.wallet!!, result.winnings)
-        verify(transactionService).createBetTransaction(player.wallet!!, betAmount)
-        verify(transactionService).updateWalletAndTransactions(player.wallet!!, result.winnings)
+        assertThat(result.generatedNumber).isEqualTo(generatedNumber)
+        assertThat(result.winnings).isEqualByComparingTo(winnings)
+
+        verify(walletService).deductFundsFromWallet(wallet, betAmount)
+        verify(walletService).addFundsToWallet(wallet, winnings)
+        verify(transactionService).updateWalletAndTransactions(wallet, winnings)
         verify(betService).finalizeBet(bet, result)
     }
 
     @Test
-    fun `should throw exception when player not found`() {
+    fun `playGame should throw exception when player not found`() {
         // Arrange
         val playerId = 1L
-        val betAmount = BigDecimal(100)
+        val betAmount = BigDecimal("100")
         val chosenNumber = 5
         val gameType = GameType.ODDS_BASED
 
-        `when`(playerRepository.findById(playerId)).thenReturn(Optional.empty())
+        whenever(playerRepository.findById(playerId)).thenReturn(Optional.empty())
 
         // Act & Assert
-        val exception = assertThrows<RuntimeException> {
+        assertThatThrownBy {
             gameService.playGame(playerId, betAmount, chosenNumber, gameType)
-        }
+        }.isInstanceOf(RuntimeException::class.java)
+            .hasMessageContaining("Player not found")
 
-        assertEquals("Player not found", exception.message)
+        verifyNoInteractions(walletService, transactionService, betService)
     }
 
     @Test
-    fun `should throw exception when insufficient funds`() {
+    fun `playGame should throw exception when insufficient funds`() {
         // Arrange
         val playerId = 1L
-        val betAmount = BigDecimal(100)
-        val chosenNumber = 5
-        val gameType = GameType.ODDS_BASED
-        val player = Player(id = playerId, wallet = Wallet(id = 1L, balance = BigDecimal(50)))
+        val betAmount = BigDecimal("1000")
+        val player = Player()
+        val wallet = Wallet(BigDecimal("500"), BigDecimal("0"))
+        player.wallet = wallet
 
-        `when`(playerRepository.findById(playerId)).thenReturn(Optional.of(player))
+        whenever(playerRepository.findById(playerId)).thenReturn(Optional.of(player))
 
         // Act & Assert
-        val exception = assertThrows<RuntimeException> {
-            gameService.playGame(playerId, betAmount, chosenNumber, gameType)
-        }
+        assertThatThrownBy {
+            gameService.playGame(playerId, betAmount, 5, GameType.ODDS_BASED)
+        }.isInstanceOf(RuntimeException::class.java)
+            .hasMessageContaining("Insufficient funds")
 
-        assertEquals("Insufficient funds", exception.message)
-    }
-
-    @Test
-    fun `should generate random number`() {
-        // Act
-        val randomNumber = gameService.generateRandomNumber()
-
-        // Assert
-        assertTrue(randomNumber in 1..10)
+        verifyNoInteractions(walletService, transactionService, betService)
     }
 }

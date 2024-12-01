@@ -1,6 +1,5 @@
 package com.example.rivertech.service
 
-import com.example.rivertech.model.Player
 import com.example.rivertech.repository.PlayerRepository
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory

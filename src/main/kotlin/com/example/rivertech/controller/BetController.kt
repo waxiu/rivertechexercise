@@ -15,7 +15,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
 @RestController
-@RequestMapping("/api/bet")
+@RequestMapping("/bet")
 class BetController(
     private val gameService: GameService,
     private val betService: BetService
@@ -48,13 +48,13 @@ class BetController(
         @PathVariable playerId: Long,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int
-    ): ResponseEntity<Page<BetHistoryDto>> {
+    ): ResponseEntity<ApiResponse<Page<BetHistoryDto>>> {
         logger.info("Requesting bet history: playerId={}, page={}, size={}", playerId, page, size)
 
         val pageable: Pageable = PageRequest.of(page, size)
         val betHistory = betService.getBetHistoryForPlayer(playerId, pageable)
 
         logger.info("Bet history retrieved successfully for playerId: {}", playerId)
-        return ResponseEntity.ok(betHistory)
+        return ResponseEntity.ok(ApiResponse(success = true, message = "Bet history retrieved successfully", data = betHistory))
     }
 }

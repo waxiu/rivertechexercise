@@ -33,12 +33,11 @@ class PlayerService(
             username = dto.username
         )
 
-        // Tworzenie portfela i ustawienie relacji dwustronnej
         val wallet = Wallet(balance = BigDecimal(1000), totalWinnings = BigDecimal.ZERO)
         wallet.player = player
         player.wallet = wallet
 
-        val savedPlayer = playerRepository.save(player) // Zapis automatycznie zapisze też wallet
+        val savedPlayer = playerRepository.save(player)
         logger.info("Player registered successfully with playerId: {}", savedPlayer.id)
 
         return savedPlayer

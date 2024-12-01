@@ -14,6 +14,7 @@ import org.springframework.data.domain.PageRequest
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 
+
 @RestController
 @RequestMapping("/player")
 class PlayerController(
@@ -38,13 +39,13 @@ class PlayerController(
         @PathVariable playerId: Long,
         @RequestParam(defaultValue = "0") page: Int,
         @RequestParam(defaultValue = "10") size: Int
-    ): ResponseEntity<Page<Transaction>> {
+    ): ResponseEntity<ApiResponse<Page<Transaction>>> {
         logger.info("Request for paginated transactions for playerId: {}, page: {}, size: {}", playerId, page, size)
 
         val pageable = PageRequest.of(page, size)
         val transactions = transactionService.getTransactionsForPlayer(playerId, pageable)
 
-        return ResponseEntity.ok(transactions)
+        return ResponseEntity.ok(ApiResponse(success = true, message = "Transactions fetched successfully", data = transactions))
     }
 
     @PostMapping("/deposit/{playerId}")
@@ -53,6 +54,6 @@ class PlayerController(
         @RequestBody depositRequestDto: DepositRequestDto
     ): ResponseEntity<ApiResponse<String>> {
         playerService.depositToPlayerWallet(playerId, depositRequestDto.amount)
-        return ResponseEntity.ok(ApiResponse(success = true, message = "Deposit successful"))
+        return ResponseEntity.ok(ApiResponse(success = true, message = "Deposit successful", data = "Deposit successful"))
     }
 }
